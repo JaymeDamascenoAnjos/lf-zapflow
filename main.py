@@ -12,10 +12,7 @@ from app.utils.whatsapp import enviar_mensagem_zap, enviar_status_presenca
 
 load_dotenv()
 
-app = FastAPI(
-    title="ZapFlow - Consultor de Vendas Digital",
-    redirect_slashes=False
-)
+app = FastAPI(title="ZapFlow - Consultor de Vendas Digital", redirect_slashes=False) 
 
 # Configurações e Logs
 os.makedirs("app/logs", exist_ok=True)
@@ -44,6 +41,10 @@ def registrar_lead(jid, nome, ultima_msg, status="Atendimento IA"):
 
     with open(caminho_leads, 'w', encoding='utf-8') as f:
         json.dump(leads, f, ensure_ascii=False, indent=2)
+
+@app.get("/")
+def home():
+    return {"status": "ZapFlow Online"}
 
 @app.post("/webhook")
 async def webhook_whatsapp(request: Request, background_tasks: BackgroundTasks):
