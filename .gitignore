@@ -1,0 +1,34 @@
+# --- SEGURANÇA E CHAVES ---
+.env
+*.env
+api_key.txt
+Info.txt
+
+# --- AMBIENTE VIRTUAL ---
+venv/
+env/
+ENV/
+.venv/
+
+# --- BANCO DE DADOS E HISTÓRICO (LOCAL) ---
+# Ignoramos os históricos dos clientes para não vazar dados
+db/historico_*.json
+# Se quiser que o lojista comece com um arquivo padrão, 
+# NÃO ignore o config_loja.json, ou use um exemplo:
+# db/config_loja_exemplo.json
+
+# --- LOGS E MONITORAMENTO ---
+app/logs/*.log
+*.log
+
+# --- CACHE DO PYTHON ---
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# --- SISTEMA OPERACIONAL ---
+.DS_Store
+Thumbs.db
+
+ngrok.exe
