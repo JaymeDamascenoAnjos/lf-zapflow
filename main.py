@@ -12,7 +12,8 @@ from app.utils.whatsapp import enviar_mensagem_zap, enviar_status_presenca
 
 load_dotenv()
 
-app = FastAPI(title="ZapFlow - Vendedor Digital")
+app = FastAPI(title="ZapFlow - Consultor de Vendas Digital")
+app = FastAPI(redirect_slashes=False) # Adicione isso para evitar o "ignorado"
 
 # Configurações e Logs
 os.makedirs("app/logs", exist_ok=True)
