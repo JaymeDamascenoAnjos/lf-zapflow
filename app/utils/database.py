@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_client, Column, String, DateTime, Text, create_engine
+from sqlalchemy import create_engine, Column, String, DateTime, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -8,10 +8,11 @@ from dotenv import load_dotenv
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# O SQLAlchemy exige que a URL comece com postgresql:// (o Render às vezes dá postgres://)
+# Garante que a URL use o protocolo correto para o SQLAlchemy
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# O engine agora usa a função correta: create_engine
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
