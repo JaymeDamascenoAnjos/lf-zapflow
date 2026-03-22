@@ -1,64 +1,63 @@
 import openai
-import json
 import os
-import time
 from loguru import logger
 from dotenv import load_dotenv
+from app.utils.database import SessionLocal, ConfigLoja
+from datetime import datetime
 
-# Importamos as funções de memória
+# Importamos as funções de memória centralizadas
 from app.utils.memory import carregar_contexto, salvar_contexto
 
 load_dotenv()
 
-# Ajuste importante: Garantir que a chave seja lida do ambiente do Render
+# Cliente OpenAI
 client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def carregar_dados_loja():
-    """Lê as configurações com Retry para evitar conflito com o Streamlit."""
-    caminho = "app/db/config_loja.json"
-    
-    for _ in range(3):
-        if os.path.exists(caminho):
-            try:
-                with open(caminho, 'r', encoding='utf-8') as f:
-                    dados = json.load(f)
-                    if not dados.get("nome") or not dados.get("conhecimento"):
-                        break
-                    return dados
-            except (json.JSONDecodeError, IOError):
-                time.sleep(0.1)
-                continue
-    
-    return {
-        "nome": "Assistente de Vendas", 
-        "conhecimento": "Atendimento cordial ao cliente. Informe que estamos configurando nosso catálogo."
-    }
+    """Busca as configurações da loja no PostgreSQL."""
+    db = SessionLocal()
+    try:
+        config = db.query(ConfigLoja).filter(ConfigLoja.id == 1).first()
+        if config:
+            return {"nome": config.nome_loja, "conhecimento": config.conhecimento}
+        return {"nome": "Consultor Comercial", "conhecimento": "Atendimento padrão de vendas."}
+    finally:
+        db.close()
 
 def processar_conversa(jid, texto_cliente, nome_cliente):
-    """Coordena a inteligência de vendas."""
+    """Coordena a inteligência de vendas com foco em conversão."""
     try:
         loja = carregar_dados_loja()
+        # Busca o histórico do banco (Persistência Total)
         historico_antigo = carregar_contexto(jid)
         
         prompt_sistema = {
             "role": "system",
-            "content": f"""Você é o Consultor Comercial da {loja['nome']}. Seu objetivo único é transformar curiosos em clientes.
+            "content": f"""Você é o Consultor Comercial de elite da {loja['nome']}. 
+            Seu objetivo único é transformar curiosos em compradores.
+
             BASE DE CONHECIMENTO: {loja['conhecimento']}
-            ESTRATÉGIA DE VENDA: Responda de forma empática e direta. Encerre com uma pergunta de engajamento."""
+
+            ESTRATÉGIA DE VENDA (FECHAMENTO):
+            1. Responda de forma extremamente empática, direta e sem enrolação.
+            2. Se o cliente demonstrar interesse ou tirar dúvida sobre preço/serviço, induza o fechamento imediatamente.
+            3. Use gatilhos de fechamento: 'Posso separar o seu?', 'Prefere retirar hoje ou que eu envie?', 'Vamos garantir sua vaga?'.
+            4. NUNCA termine uma mensagem sem uma pergunta que direcione o cliente para o próximo passo da compra."""
         }
 
+        # Montagem do histórico para a IA
         mensagens_para_ia = [prompt_sistema]
         for msg in (historico_antigo or []):
             mensagens_para_ia.append(msg)
         
         mensagens_para_ia.append({"role": "user", "content": texto_cliente})
 
-        # Chamada OpenAI com a nova sintaxe da biblioteca
+        # Chamada OpenAI
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=mensagens_para_ia,
-            temperature=0.3,
-            max_tokens=300
+            temperature=0.3, # Baixa temperatura para manter o foco comercial
+            max_tokens=400
         )
         
         resposta_ia = response.choices[0].message.content
@@ -66,13 +65,16 @@ def processar_conversa(jid, texto_cliente, nome_cliente):
         if not resposta_ia:
             raise ValueError("Resposta da IA veio vazia")
 
+        # PERSISTÊNCIA: Salva as duas pontas da conversa no banco
         salvar_contexto(jid, "user", texto_cliente)
         salvar_contexto(jid, "assistant", resposta_ia)
         
-        logger.info(f"IA gerou resposta para {nome_cliente}")
+        logger.info(f"✅ Resposta enviada para {nome_cliente} ({jid})")
         return resposta_ia
 
     except Exception as e:
-        logger.error(f"Erro no processamento da conversa: {e}")
-        # Retorno padrão de segurança para evitar erro 400 na Evolution API
-        return "Olá! Tive um breve problema técnico para processar sua mensagem agora. Pode repetir, por favor?"
+        logger.error(f"❌ Erro no processamento da conversa: {e}")
+        return "Olá! Tive um pequeno problema técnico aqui, mas já estou de volta. Pode repetir sua última dúvida?"
+
+# Nota: As funções carregar_contexto e salvar_contexto duplicadas foram removidas 
+# pois agora são importadas corretamente do arquivo memory.py.
