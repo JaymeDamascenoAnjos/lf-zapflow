@@ -1,12 +1,24 @@
+# Servidor e Framework
 fastapi
 uvicorn
-openai
-loguru
-python-dotenv
-httpx
 python-multipart
-streamlit
-pandas
-pydub
+
+# Inteligência Artificial
+openai>=1.0.0
+loguru
+
+# Banco de Dados (PostgreSQL)
 sqlalchemy
 psycopg2-binary
+
+# Interface e Dados
+streamlit
+pandas
+
+# Utilidades e Recomendações para Deploy
+python-dotenv
+httpx
+pydub
+
+# Gunicorn é recomendado para produção no Render (opcional mas ideal)
+gunicorn
