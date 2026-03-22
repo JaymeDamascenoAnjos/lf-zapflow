@@ -1,6 +1,8 @@
 import json
 import os
 from loguru import logger
+from app.utils.database import SessionLocal, Mensagem
+from datetime import datetime
 
 # Centraliza o diretório de banco de dados
 DB_DIR = "app/db/messages"
@@ -15,43 +17,22 @@ def obter_caminho_historico(jid):
     return os.path.join(DB_DIR, f"historico_{id_limpo}.json")
 
 def carregar_contexto(jid):
-    """Recupera as últimas mensagens do cliente com tratamento de erro."""
-    caminho = obter_caminho_historico(jid)
-    
-    if os.path.exists(caminho):
-        try:
-            with open(caminho, 'r', encoding='utf-8') as f:
-                historico = json.load(f)
-                # Retorna apenas as últimas 6 mensagens para manter o foco da IA
-                return historico[-6:]
-        except Exception as e:
-            logger.error(f"Erro ao ler histórico de {jid}: {e}")
-            
-    return []
+    """Busca as últimas 6 mensagens do banco de dados."""
+    db = SessionLocal()
+    try:
+        mensagens = db.query(Mensagem).filter(Mensagem.jid == jid)\
+                      .order_by(Mensagem.data_criacao.desc()).limit(6).all()
+        # Inverte para ordem cronológica (mais antiga para mais recente)
+        return [{"role": m.role, "content": m.content} for m in reversed(mensagens)]
+    finally:
+        db.close()
 
 def salvar_contexto(jid, role, content):
-    """Adiciona uma nova interação e mantém o arquivo saudável."""
-    caminho = obter_caminho_historico(jid)
-    
-    # Carregamos o histórico completo para adicionar a nova mensagem
-    # (Usamos uma leitura simples aqui para performance)
-    historico = []
-    if os.path.exists(caminho):
-        try:
-            with open(caminho, 'r', encoding='utf-8') as f:
-                historico = json.load(f)
-        except:
-            historico = []
-
-    # Adiciona a nova interação
-    historico.append({"role": role, "content": content})
-    
-    # Mantém apenas as últimas 12 mensagens no arquivo físico 
-    # (6 interações completas: User + Assistant) para não crescer infinito
-    historico_final = historico[-12:]
-    
+    """Salva a interação no banco de dados."""
+    db = SessionLocal()
     try:
-        with open(caminho, 'w', encoding='utf-8') as f:
-            json.dump(historico_final, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        logger.error(f"Erro ao salvar histórico de {jid}: {e}")
+        nova_msg = Mensagem(jid=jid, role=role, content=content)
+        db.add(nova_msg)
+        db.commit()
+    finally:
+        db.close()
